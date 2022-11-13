@@ -21,7 +21,7 @@ var (
 )
 
 type Config struct {
-	Directories []string `toml:directories`
+	Directories []string `toml:"directories"`
 }
 
 func setFlags() {
