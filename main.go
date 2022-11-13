@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
@@ -13,6 +14,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	"github.com/pelletier/go-toml/v2"
+	"golang.org/x/term"
 )
 
 const (
@@ -51,6 +53,10 @@ func run(args []string, outStream, errStream io.Writer) (exitCode int) {
 	}
 
 	pattern := regexp.MustCompile(flags.Args()[0])
+	width, _, err := term.GetSize(0)
+	if err != nil {
+		width = 80
+	}
 
 	for _, directory := range config.Directories {
 		fmt.Fprintf(outStream, "searching `%v` ...\n", directory)
@@ -84,7 +90,7 @@ func run(args []string, outStream, errStream io.Writer) (exitCode int) {
 
 		err = cIter.ForEach(func(c *object.Commit) error {
 			if pattern.Match([]byte(c.Message)) {
-				fmt.Fprintf(outStream, "%v: %v\n-----------------------\n", c.Hash, c.Message)
+				fmt.Fprintf(outStream, "%v: %v\n", c.Hash, formatMessage(c.Message, width-len(c.Hash)))
 			}
 			return nil
 		})
@@ -111,4 +117,14 @@ func parseDataFile(filename string) (*Config, error) {
 	}
 
 	return config, nil
+}
+
+func formatMessage(msg string, width int) string {
+	i := strings.Index(msg, "\n")
+	r := []rune(msg)
+
+	if i < width {
+		return string(r[0:i])
+	}
+	return string(r[0:width-3]) + "..."
 }
