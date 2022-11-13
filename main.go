@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"sync"
 
 	"github.com/pelletier/go-toml/v2"
 	"golang.org/x/term"
@@ -52,16 +53,13 @@ func run(args []string, outStream, errStream io.Writer) (exitCode int) {
 		width = 80
 	}
 
+	var wg sync.WaitGroup
 	for _, directory := range config.Directories {
-		fmt.Fprintf(outStream, "searching `%v` ...\n", directory)
-		searcher := NewSearcher(directory, pattern, width)
-		result, err := searcher.Run()
-		if err != nil {
-			fmt.Fprintf(errStream, "error: %v\n", err)
-		} else {
-			fmt.Fprintf(outStream, "%s\n", result)
-		}
+		searcher := NewSearcher(directory, pattern, width, outStream, errStream)
+		wg.Add(1)
+		go searcher.Run(&wg)
 	}
+	wg.Wait()
 
 	return 0
 }
